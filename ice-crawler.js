@@ -29,14 +29,15 @@ async function normalizeRepoUrlFn(raw) {
   return normalizeRepositoryUrl(raw);
 }
 
-// ─── Start dashboard server (spawns server.cjs as child) ───────────────
+// ─── Start dashboard server (spawns server.cjs as detached child) ───────
 function startDashboardServer(port = 8765) {
   const serverPath = join(__dirname, 'server.cjs');
   const child = spawn(process.execPath, [serverPath, String(port)], {
-    detached: false,
-    stdio: 'inherit',
-    windowsHide: false,
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
   });
+  child.unref();
   return { pid: child.pid, port, url: `http://localhost:${port}` };
 }
 
@@ -101,11 +102,11 @@ async function cli() {
     const server = startDashboardServer(port);
     console.log(`  Dashboard: ${server.url}`);
     console.log(`  PID: ${server.pid}`);
-    console.log('\n  Press Ctrl+C to stop.\n');
+    console.log('\n  Server running in background. Press Ctrl+C to exit (server stays alive).\n');
 
-    // Keep process alive
+    // Keep process alive but don't block the server
     process.on('SIGINT', () => {
-      console.log('\n  Stopping dashboard...');
+      console.log('\n  Exiting CLI (dashboard server stays running)...');
       process.exit(0);
     });
 
@@ -121,7 +122,7 @@ Usage:
 Commands:
   ingest     Run full Frost→Glacier→Crystal→Residue pipeline
   estimate   Run Frost-only telemetry scan
-  dashboard  Launch real-time monitoring dashboard
+  dashboard  Launch real-time monitoring dashboard (persistent)
 
 Options:
   --max-files N   Max files to crystallize (default: 60)

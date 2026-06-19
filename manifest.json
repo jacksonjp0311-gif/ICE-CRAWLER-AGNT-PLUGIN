@@ -1,7 +1,7 @@
 {
   "name": "ice-crawler",
   "displayName": "ICE Crawler",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Triadic zero-trace repository ingestion engine — Frost telemetry, Glacier ephemeral materialization, Crystal deterministic crystallization, and Residue lock. Produces sealed artifacts for AI analysis.",
   "author": "James Paul Jackson",
   "icon": "❄️",
@@ -80,7 +80,7 @@
       "entryPoint": "./ice-crawler.js",
       "schema": {
         "title": "ICE Crawler Dashboard",
-        "description": "Launch the real-time ICE Crawler monitoring dashboard UI in the external browser.",
+        "description": "Launch the real-time ICE Crawler monitoring dashboard UI. Server runs persistently in the background.",
         "parameters": {
           "port": {
             "type": "number",

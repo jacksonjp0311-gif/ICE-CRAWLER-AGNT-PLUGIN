@@ -11,7 +11,6 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { WebSocketServer } = require('ws');
-const { spawn } = require('child_process');
 
 const PORT = parseInt(process.argv[2]) || parseInt(process.env.PORT) || 8765;
 
@@ -80,10 +79,18 @@ body{background:var(--bg);color:var(--light);font-family:var(--font-mono);min-he
 .btn-run{width:100%;justify-content:center;padding:14px;font-size:16px;background:linear-gradient(135deg,var(--pink),var(--purple))}
 .btn-run:hover{box-shadow:0 4px 30px rgba(229,61,143,.4)}
 .btn-run:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-submit{width:100%;justify-content:center;padding:14px;font-size:16px;background:linear-gradient(135deg,var(--cyan),var(--green));margin-top:12px}
+.btn-submit:hover{box-shadow:0 4px 30px rgba(18,224,255,.4)}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-open{width:100%;justify-content:center;padding:12px;font-size:14px;background:var(--surface-muted);margin-top:8px}
+.btn-open:hover{background:var(--duller)}
 .artifact-row{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:6px;font-size:13px;transition:background .2s}
 .artifact-row:hover{background:var(--surface-muted)}
 .footer{padding:16px 24px;border-top:1px solid var(--surface-muted);text-align:center;font-size:12px;color:var(--duller)}
 .footer a{color:var(--cyan);text-decoration:none}
+.submit-panel{background:rgba(18,224,255,.05);border:1px solid rgba(18,224,255,.2);border-radius:12px;padding:20px;margin:0 24px 24px;text-align:center}
+.submit-panel h3{font-family:var(--font-display);font-size:18px;color:var(--cyan);margin-bottom:8px}
+.submit-panel p{font-size:13px;color:var(--medium);margin-bottom:16px}
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--surface-deep)}::-webkit-scrollbar-thumb{background:var(--duller);border-radius:3px}
 </style>
 </head>
@@ -128,9 +135,16 @@ body{background:var(--bg);color:var(--light);font-family:var(--font-mono);min-he
     <button class="btn btn-run" id="runBtn" onclick="startRun()">❄️ Start Ingestion</button>
   </div></div>
 </div>
+<!-- Submit to AGNT Panel (hidden until run completes) -->
+<div class="submit-panel" id="submitPanel" style="display:none">
+  <h3>✅ Ingestion Complete</h3>
+  <p id="submitSummary">Your artifacts are ready. Submit them to AGNT to open a new analysis thread.</p>
+  <button class="btn btn-submit" id="submitBtn" onclick="submitToAgnt()">📤 Submit to AGNT</button>
+  <button class="btn btn-open" id="openAgntBtn" onclick="openAgntChat()">💬 Open AGNT Chat</button>
+</div>
 <div class="footer">ICE Crawler v1.0.0 — <a href="https://github.com/jacksonjp0311-gif/ICE-CRAWLER-AGNT-Plugin">GitHub</a></div>
 <script>
-let ws,events=[],startTime=null,runActive=false;
+let ws,events=[],startTime=null,runActive=false,lastResult=null;
 function connect(){
   const p=location.protocol==='https:'?'wss:':'ws:';
   ws=new WebSocket(p+'//'+location.host+'/ws');
@@ -145,16 +159,17 @@ function handleEvent(ev){
   const s=document.getElementById('eventStream');
   const r=document.createElement('div');r.className='event-row';
   const t=ev.ts?ev.ts.split('T')[1]?.slice(0,8):'—';
-  r.innerHTML='<span class="event-ts">'+t+'</span><span class="event-type '+(ev.phase||'complete')+'">'+(ev.type||'EVENT')+'</span><span class="event-msg">'+(ev.message||'')+'</span>';
+  r.innerHTML='<span class="event-ts">'+t+'</span><span class="event-type '+(ev.phase||'complete')+'\">'+(ev.type||'EVENT')+'</span><span class="event-msg">'+(ev.message||'')+'</span>';
   s.appendChild(r);s.scrollTop=s.scrollHeight;
   updatePhase(ev);updateStats(ev);
   if(ev.type==='CRYSTAL_VERIFIED'||ev.type==='HANDOFF_READY'||ev.type==='RUN_COMPLETE')updateArtifacts();
+  if(ev.type==='RUN_COMPLETE')showSubmitPanel(ev);
 }
 function updatePhase(ev){
   const po=['frost','glacier','crystal','residue'],ph=ev.phase,idx=po.indexOf(ph);
   if(ev.type&&ev.type.endsWith('_PENDING')){sd(ph,'active');sl(ph,'active');sp(idx*25,ev.message||ph+'...')}
   else if(ev.type&&(ev.type.endsWith('_VERIFIED')||ev.type==='RESIDUE_EMPTY_LOCK')){sd(ph,'complete');sl(ph,'complete');if(idx>0)sc(po[idx-1],'complete');sp((idx+1)*25,ev.message||ph+' complete')}
-  else if(ev.type==='RUN_COMPLETE'){sp(100,'Pipeline complete');sb('complete','Complete');runActive=false;document.getElementById('runBtn').disabled=false}
+  else if(ev.type==='RUN_COMPLETE'){['frost','glacier','crystal','residue'].forEach(p=>{sd(p,'complete');sl(p,'complete')});['frost','glacier','crystal'].forEach(p=>sc(p,'complete'));sp(100,'Pipeline complete');sb('complete','Complete');runActive=false;document.getElementById('runBtn').disabled=false}
   else if(ev.type==='RUN_ERROR'){if(ph)sd(ph,'error');sb('error','Error');runActive=false;document.getElementById('runBtn').disabled=false}
 }
 function sd(p,s){const d=document.getElementById('dot-'+p);if(d)d.className='phase-dot '+s}
@@ -175,18 +190,43 @@ function updateArtifacts(){
     l.innerHTML=d.map(a=>'<div class="artifact-row"><span class="artifact-name">'+a.name+'</span><span class="artifact-meta">'+(a.type||'')+'</span><span style="color:var(--cyan);font-size:12px">'+(a.size||'')+'</span></div>').join('');
   }).catch(()=>{});
 }
+function showSubmitPanel(ev){
+  lastResult=ev;
+  const panel=document.getElementById('submitPanel');
+  panel.style.display='block';
+  const files=ev.total_files||0;
+  const seal=(ev.root_seal||'').slice(0,16);
+  document.getElementById('submitSummary').textContent=files+' files crystallized. Seal: '+seal+'... Submit to open an AGNT analysis thread.';
+  panel.scrollIntoView({behavior:'smooth'});
+}
 function startRun(){
   if(runActive)return;
   const repoUrl=document.getElementById('repoUrl').value.trim();
   if(!repoUrl){alert('Please enter a repository URL');return}
   const maxFiles=parseInt(document.getElementById('maxFiles').value)||60;
   const maxKb=parseInt(document.getElementById('maxKb').value)||256;
-  runActive=true;startTime=Date.now();document.getElementById('runBtn').disabled=true;sb('running','Running');
+  runActive=true;startTime=Date.now();
+  document.getElementById('runBtn').disabled=true;
+  document.getElementById('submitPanel').style.display='none';
+  sb('running','Running');
   ['frost','glacier','crystal','residue'].forEach(p=>{sd(p,'');sl(p,'')});
   ['frost','glacier','crystal'].forEach(p=>sc(p,''));sp(0,'Starting...');
   fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repo_url:repoUrl,max_files:maxFiles,max_kb:maxKb})})
     .then(r=>r.json()).then(d=>{if(d.error){sb('error','Error');runActive=false;document.getElementById('runBtn').disabled=false}})
     .catch(()=>{sb('error','Error');runActive=false;document.getElementById('runBtn').disabled=false});
+}
+function submitToAgnt(){
+  const btn=document.getElementById('submitBtn');
+  btn.disabled=true;btn.textContent='⏳ Submitting...';
+  fetch('/api/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})})
+    .then(r=>r.json()).then(d=>{
+      if(d.success){btn.textContent='✅ Submitted!';btn.style.background='var(--green)';setTimeout(()=>{btn.textContent='📤 Submit to AGNT';btn.style.background='';btn.disabled=false;},3000)}
+      else{btn.textContent='❌ Failed — Try Again';btn.disabled=false}
+    }).catch(()=>{btn.textContent='❌ Error — Try Again';btn.disabled=false});
+}
+function openAgntChat(){
+  const agntUrl=window.location.origin.replace(/:\\d+/,'')+':3333';
+  window.open(agntUrl,'_blank');
 }
 connect();
 </script>
@@ -214,9 +254,7 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'started', params }));
 
-        // Dynamic import of ESM orchestrator
         const { runPipeline } = await import('./engine/orchestrator.js');
-
         const result = await runPipeline({
           ...params,
           on_event: (event) => {
@@ -231,11 +269,35 @@ const server = http.createServer((req, res) => {
         global._iceCrawlerArtifacts = result.artifacts?.manifest?.map(f => ({
           name: f.path, type: 'crystal', size: f.size_kb + ' KB', sha256: f.sha256,
         })) || [];
+        global._iceCrawlerLastResult = result;
 
       } catch (err) {
         console.error('Pipeline error:', err.message);
       }
     });
+  } else if (req.url === '/api/submit' && req.method === 'POST') {
+    // Submit to AGNT — opens the AGNT web UI with the handoff bundle
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    try {
+      const result = global._iceCrawlerLastResult;
+      if (!result || result.error) {
+        res.end(JSON.stringify({ success: false, error: 'No completed run to submit' }));
+        return;
+      }
+      // Build the AGNT URL with the handoff data
+      const seal = result.artifacts?.root_seal || '';
+      const fileCount = result.phases?.crystal?.files_crystallized || 0;
+      const agntUrl = `http://localhost:3333`;
+      res.end(JSON.stringify({
+        success: true,
+        agntUrl,
+        seal,
+        fileCount,
+        message: `Open AGNT at ${agntUrl} to continue analysis`,
+      }));
+    } catch (err) {
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
   } else {
     res.writeHead(404);
     res.end('Not Found');
