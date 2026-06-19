@@ -1,8 +1,7 @@
-node_modules/ 
-build/ 
-dist/ 
-.DS_Store 
-*.log 
-state/ 
-
+node_modules/
+dist/
+build/
+.DS_Store
+*.log
+state/
 *.bat

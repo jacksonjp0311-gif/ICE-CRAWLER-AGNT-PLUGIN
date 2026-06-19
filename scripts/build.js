@@ -1,120 +1,92 @@
+#!/usr/bin/env node
+
 /**
  * scripts/build.js
- * Build script — packages the plugin into a .agnt file
- * .agnt files are gzipped tar archives containing the plugin package
+ * Build .agnt package for ICE Crawler plugin.
+ * .agnt files are gzipped tar archives containing source + node_modules.
  */
 
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
-import { join, basename } from 'path';
-import { createGzip } from 'zlib';
-import { pipeline } from 'stream/promises';
+import fs from 'fs';
+import path from 'path';
 import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+import * as tar from 'tar';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PLUGIN_DIR = path.resolve(__dirname, '..');
 const PLUGIN_NAME = 'ice-crawler';
-const SRC_DIR = join(process.cwd());
-const BUILD_DIR = join(process.cwd(), 'build');
-const DIST_DIR = join(process.cwd(), 'dist');
-
-// Files to include in the .agnt package
-const INCLUDE_PATTERNS = [
-  'manifest.json',
-  'package.json',
-  'ice-crawler.js',
-  'engine/**/*.js',
-  'ui/**/*.js',
-  'ui/**/*.html',
-  'README.md',
-  'LICENSE',
-];
-
-const EXCLUDE_PATTERNS = [
-  'node_modules',
-  '.git',
-  'build',
-  'dist',
-  '.gitignore',
-  'package-lock.json',
-];
-
-function shouldInclude(filePath) {
-  const rel = filePath.replace(SRC_DIR + '/', '');
-
-  // Check excludes
-  for (const pattern of EXCLUDE_PATTERNS) {
-    if (rel.includes(pattern)) return false;
-  }
-
-  // Check includes
-  for (const pattern of INCLUDE_PATTERNS) {
-    if (pattern.includes('*')) {
-      // Glob pattern
-      const prefix = pattern.replace('/**', '').replace('/*', '');
-      if (rel.startsWith(prefix)) return true;
-    } else if (rel === pattern) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function collectFiles(dir, files = []) {
-  const entries = readdirSync(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (!EXCLUDE_PATTERNS.includes(entry.name)) {
-        collectFiles(fullPath, files);
-      }
-    } else if (shouldInclude(fullPath)) {
-      files.push(fullPath);
-    }
-  }
-  return files;
-}
+const DIST_DIR = path.join(PLUGIN_DIR, 'dist');
 
 async function build() {
-  console.log('❄️ ICE Crawler — Building .agnt package\n');
+  console.log(`\n🔧 Building plugin: ${PLUGIN_NAME}\n`);
 
-  // Ensure output directory
-  mkdirSync(DIST_DIR, { recursive: true });
-
-  // Collect files
-  const files = collectFiles(SRC_DIR);
-  console.log(`  📦 ${files.length} files to package:`);
-  for (const f of files) {
-    const rel = f.replace(SRC_DIR + '/', '');
-    const size = statSync(f).size;
-    console.log(`     ${rel} (${size} bytes)`);
+  // Validate manifest
+  const manifestPath = path.join(PLUGIN_DIR, 'manifest.json');
+  if (!fs.existsSync(manifestPath)) {
+    console.error('❌ manifest.json not found');
+    process.exit(1);
   }
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+  console.log(`📦 ${manifest.name} v${manifest.version}`);
+  console.log(`🔧 Tools: ${manifest.tools?.map(t => t.type).join(', ') || 'None'}`);
 
-  // Create tar-like manifest (simple JSON index + concatenated files)
-  const manifest = {
-    name: PLUGIN_NAME,
-    version: '1.0.0',
-    files: files.map(f => ({
-      path: f.replace(SRC_DIR + '/', ''),
-      size: statSync(f).size,
-    })),
-  };
+  // Ensure node_modules
+  const nmPath = path.join(PLUGIN_DIR, 'node_modules');
+  if (!fs.existsSync(nmPath) || fs.readdirSync(nmPath).length === 0) {
+    console.log('📥 Installing dependencies...');
+    execSync('npm install --production', { cwd: PLUGIN_DIR, stdio: 'inherit' });
+  }
+  console.log(`✅ node_modules: ${fs.readdirSync(nmPath).length} packages`);
 
-  // Write the .agnt file (gzipped JSON bundle)
-  const outputPath = join(DIST_DIR, `${PLUGIN_NAME}.agnt`);
+  // Create dist dir
+  if (!fs.existsSync(DIST_DIR)) fs.mkdirSync(DIST_DIR, { recursive: true });
 
-  // Build a simple tar-like format: JSON manifest + file contents
-  const bundle = JSON.stringify(manifest, null, 2);
-  const { gzipSync } = await import('zlib');
-  const compressed = gzipSync(Buffer.from(bundle));
+  // Collect files to include
+  const exclude = new Set(['.git', 'dist', '.gitignore', 'package-lock.json']);
+  const files = fs.readdirSync(PLUGIN_DIR).filter(f => !exclude.has(f));
 
-  const { writeFileSync } = await import('fs');
-  writeFileSync(outputPath, compressed);
+  console.log(`\n📁 ${files.length} items to package:`);
+  files.forEach(f => {
+    const stat = fs.statSync(path.join(PLUGIN_DIR, f));
+    if (f === 'node_modules') {
+      console.log(`  - ${f}/ (${fs.readdirSync(path.join(PLUGIN_DIR, f)).length} packages)`);
+    } else if (stat.isDirectory()) {
+      console.log(`  - ${f}/`);
+    } else {
+      console.log(`  - ${f} (${stat.size} bytes)`);
+    }
+  });
 
-  console.log(`\n  ✅ Built: ${outputPath}`);
-  console.log(`  📏 Size: ${compressed.length} bytes (compressed)`);
-  console.log(`\n  ❄️  Build complete!`);
+  // Create .agnt (gzipped tar)
+  const outputFile = path.join(DIST_DIR, `${PLUGIN_NAME}.agnt`);
+  console.log(`\n📦 Creating: ${outputFile}`);
+
+  await tar.create(
+    {
+      gzip: true,
+      file: outputFile,
+      cwd: PLUGIN_DIR,
+      prefix: PLUGIN_NAME,
+    },
+    files
+  );
+
+  const stats = fs.statSync(outputFile);
+  const sizeKB = (stats.size / 1024).toFixed(1);
+  const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
+  console.log(`\n✅ Build complete!`);
+  console.log(`📦 Output: ${outputFile}`);
+  console.log(`📊 Size: ${stats.size > 1024 * 1024 ? sizeMB + ' MB' : sizeKB + ' KB'}`);
+
+  // Verify
+  const contents = [];
+  await tar.list({ file: outputFile, onentry: (entry) => contents.push(entry.path) });
+  console.log(`📋 ${contents.length} files/directories in package`);
+  console.log(`\n🚀 Ready for marketplace!`);
 }
 
 build().catch(err => {
-  console.error('Build failed:', err);
+  console.error('❌ Build failed:', err.message);
   process.exit(1);
 });

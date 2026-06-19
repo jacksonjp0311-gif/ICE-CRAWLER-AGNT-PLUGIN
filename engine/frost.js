@@ -2,21 +2,14 @@
  * engine/frost.js
  * ❄ FROST — Telemetry Scout
  * Resolves HEAD hash via git ls-remote. No clone.
- * Ported from Python: engine/frost.js
  */
 
 import { execSync } from 'child_process';
 
-/**
- * Get current UTC ISO timestamp (no microseconds)
- */
 function utcNow() {
   return new Date().toISOString().replace(/\.\d{3}Z/, 'Z');
 }
 
-/**
- * Run a command silently (suppress stderr on Windows)
- */
 function runSilent(cmd, args) {
   try {
     const output = execSync(`${cmd} ${args.join(' ')}`, {
@@ -32,8 +25,6 @@ function runSilent(cmd, args) {
 
 /**
  * Frost telemetry — resolve HEAD hash without cloning
- * @param {string} repoUrl - Git repository URL
- * @returns {Object} Frost telemetry result
  */
 export function frostTelemetry(repoUrl) {
   const { rc, output } = runSilent('git', ['ls-remote', repoUrl, 'HEAD']);
