@@ -1,7 +1,7 @@
 {
   "name": "ice-crawler-agnt-plugin",
-  "version": "1.0.0",
-  "description": "ICE Crawler — Triadic zero-trace repository ingestion for AGNT",
+  "version": "1.4.0",
+  "description": "ICE Crawler — Triadic zero-trace repository ingestion for AGNT with enhanced AGNT integration and thread submission",
   "type": "module",
   "main": "ice-crawler.js",
   "engines": {

@@ -1,8 +1,8 @@
 {
   "name": "ice-crawler",
   "displayName": "ICE Crawler",
-  "version": "1.1.0",
-  "description": "Triadic zero-trace repository ingestion engine — Frost telemetry, Glacier ephemeral materialization, Crystal deterministic crystallization, and Residue lock. Produces sealed artifacts for AI analysis.",
+  "version": "1.4.0",
+  "description": "Triadic zero-trace repository ingestion engine — Frost telemetry, Glacier ephemeral materialization, Crystal deterministic crystallization, and Residue lock. Produces sealed artifacts for AI analysis with real-time dashboard and AGNT thread submission.",
   "author": "James Paul Jackson",
   "icon": "❄️",
   "homepage": "https://github.com/jacksonjp0311-gif/ICE-CRAWLER-AGNT-Plugin",
@@ -15,7 +15,10 @@
     "zero-trace",
     "crystallization",
     "git",
-    "ai-handoff"
+    "ai-handoff",
+    "dashboard",
+    "real-time",
+    "agnt"
   ],
   "type": "module",
   "main": "./ice-crawler.js",
@@ -101,6 +104,20 @@
             "type": "string",
             "required": true,
             "description": "Dashboard URL to open (e.g. http://localhost:8765)"
+          }
+        }
+      }
+    },
+    {
+      "type": "ice-crawler-submit",
+      "entryPoint": "./ice-crawler.js",
+      "schema": {
+        "title": "ICE Crawler Submit to AGNT",
+        "description": "Submit the latest ICE Crawler run results to AGNT to open an analysis thread.",
+        "parameters": {
+          "run_id": {
+            "type": "string",
+            "description": "Specific run ID to submit (default: latest run)"
           }
         }
       }

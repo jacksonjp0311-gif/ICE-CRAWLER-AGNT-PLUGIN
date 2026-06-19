@@ -1,11 +1,3 @@
-/**
- * ice-crawler.js
- * ❄️ ICE Crawler — AGNT Plugin Entry Point (Pure ESM)
- *
- * Default export: IceCrawler instance (for AGNT plugin system)
- * CLI: ingest, estimate, dashboard commands
- */
-
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -102,7 +94,7 @@ async function cli() {
     const server = startDashboardServer(port);
     console.log(`  Dashboard: ${server.url}`);
     console.log(`  PID: ${server.pid}`);
-    console.log('\n  Server running in background. Press Ctrl+C to exit (server stays alive).\n');
+    console.log('\n  Server running in background. Press Ctrl+C to exit (dashboard server stays alive).\n');
 
     // Keep process alive but don't block the server
     process.on('SIGINT', () => {
@@ -141,7 +133,7 @@ Examples:
 class IceCrawler {
   constructor() {
     this.name = 'ice-crawler';
-    this.version = '1.0.0';
+    this.version = '1.4.0';
     this.description = 'Triadic zero-trace repository ingestion engine';
   }
 
@@ -189,6 +181,89 @@ class IceCrawler {
     const port = params?.port || 8765;
     const server = startDashboardServer(port);
     return { status: 'dashboard_started', ...server };
+  }
+
+  async submit(params) {
+    const { run_id } = params;
+    // Find the latest completed run or specific run by ID
+    const runId = run_id || 'latest';
+
+    try {
+      // Get the run result from the server state
+      const response = await fetch('http://localhost:8765/api/status');
+      const status = await response.json();
+
+      const result = status?.latestRun || status?.currentRun;
+
+      if (!result) {
+        return { 
+          status: 'error', 
+          message: 'No completed runs found. Please run an ingestion first.'
+        };
+      }
+
+      // Submit to AGNT API (this will open the thread)
+      const payload = {
+        type: 'submit',
+        payload: {
+          service: 'ice-crawler',
+          operation: 'handoff',
+          data: result,
+          description: 'ICE Crawler ingestion complete — ' + (result.files_crystallized || 0) + ' files crystallized. Submit to open AGNT analysis thread.',
+          metadata: {
+            runId: result.run_id,
+            filesCount: result.files_crystallized,
+            rootSeal: result.root_seal,
+            artifactDir: result.run_state_dir,
+            submitTime: new Date().toISOString(),
+          }
+        }
+      };
+
+      // Call AGNT API
+      const agntResponse = await agntPost('/agents/execute', payload);
+
+      return {
+        status: 'submitted',
+        run_id: result.run_id,
+        message: 'Successfully submitted to AGNT',
+        agntResponse: agntResponse
+      };
+
+    } catch (err) {
+      return { 
+        status: 'error', 
+        message: 'Failed to submit to AGNT: ' + err.message
+      };
+    }
+  }
+}
+
+// AGNT API helper function
+async function agntPost(path, body) {
+  const url = new URL('http://localhost:3333/api' + path);
+  const token = process.env.AGNT_AUTH_TOKEN;
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      throw new Error('AGNT API error: ' + response.status);
+    }
+
+    return await response.json();
+  } catch (err) {
+    throw new Error('AGNT API call failed: ' + err.message);
   }
 }
 
