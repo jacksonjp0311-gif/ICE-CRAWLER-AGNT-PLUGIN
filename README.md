@@ -2,12 +2,12 @@
 
 **Triadic zero-trace repository ingestion engine for AGNT.**
 
-Ingest any Git repository through three isolated phases — **Frost → Glacier → Crystal** — then emit deterministic sealed artifacts and a cryptographic root seal for AI analysis. Zero residual trace.
+Ingest any Git repository through three isolated phases — **Frost → Glacier → Crystal** — then emit deterministic sealed artifacts and a cryptographic root seal for AI analysis. Zero residual trace. Real-time dashboard. AGNT thread submission.
 
-[![AGNT](https://img.shields.io/badge/AGNT-Plugin-blueviolet?style=for-the-badge&logo=data:image/svg+xml;base64,)](https://agnt.gg)
+[![AGNT](https://img.shields.io/badge/AGNT-Plugin-blueviolet?style=for-the-badge)](https://agnt.gg)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js)](https://nodejs.org)
 [![License](https://img.shields.io/badge/License-MIT-e53d8f?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/v1.0.0-12e0ff?style=for-the-badge)](https://github.com/jacksonjp0311-gif/ICE-CRAWLER-AGNT-Plugin)
+[![Version](https://img.shields.io/badge/v1.5.0-12e0ff?style=for-the-badge)](https://github.com/jacksonjp0311-gif/ICE-CRAWLER-AGNT-Plugin)
 
 ---
 
@@ -30,10 +30,12 @@ Repo URL
   │
   ├─ 🔒 RESIDUE  ──→ residue_truth.json        (ρ = ∅ proof)
   │
-  └─ 🤖 HANDOFF  ──→ ai_handoff/
-                      ├─ manifest_compact.json
-                      ├─ root_seal.txt
-                      └─ PROMPT_READY.md
+  ├─ 🤖 HANDOFF  ──→ ai_handoff/
+  │                   ├─ manifest_compact.json
+  │                   ├─ root_seal.txt
+  │                   └─ PROMPT_READY.md
+  │
+  └─ 📤 SUBMIT   ──→ AGNT analysis thread      (opens conversation with results)
 ```
 
 ### Determinism Contract
@@ -55,8 +57,11 @@ For identical `(repo, revision, config)` inputs, output artifacts are stable in 
 | **Crystal Agents** | Filetype stats, import index, hotspots, README synthesis |
 | **AI Handoff** | Compact manifest + root seal + PROMPT_READY.md |
 | **Real-Time Dashboard** | WebSocket-powered live monitoring UI |
+| **Run History** | Persistent history with localStorage — click to re-run |
+| **Incremental Mode** | Skip unchanged files from previous run |
+| **Diff Panel** | Visualize changes between runs |
+| **AGNT Submit** | One-click submit to open AGNT analysis thread |
 | **φ-Partitioning** | Golden-ratio task splitting for multi-agent workflows |
-| **AGNT Native** | Full plugin manifest, tool schemas, error handling |
 
 ---
 
@@ -65,18 +70,16 @@ For identical `(repo, revision, config)` inputs, output artifacts are stable in 
 ### As AGNT Plugin
 
 ```bash
-# Clone the repo
+# Clone and install
 git clone https://github.com/jacksonjp0311-gif/ICE-CRAWLER-AGNT-Plugin.git
 cd ICE-CRAWLER-AGNT-Plugin
-
-# Install dependencies
 npm install
-
-# Build the .agnt package
 npm run build
 
-# Install into AGNT
-# (via AGNT plugin installer or manual copy)
+# Install into AGNT via API
+curl -X POST http://localhost:3333/api/plugins/install-file \
+  -H "Content-Type: application/json" \
+  -d '{"name":"ice-crawler","fileData":"<base64 of dist/ice-crawler.agnt>"}'
 ```
 
 ### As CLI Tool
@@ -99,6 +102,9 @@ node ice-crawler.js ingest https://github.com/owner/repo
 
 # With options
 node ice-crawler.js ingest https://github.com/owner/repo --max-files 100 --max-kb 512
+
+# Incremental mode (skip unchanged files)
+node ice-crawler.js ingest https://github.com/owner/repo --incremental
 
 # Enable φ-extremal agentics
 node ice-crawler.js ingest https://github.com/owner/repo --agentics
@@ -131,6 +137,7 @@ const result = await crawler.execute({
   repo_url: 'https://github.com/owner/repo',
   max_files: 60,
   max_kb: 256,
+  incremental: true,
 });
 
 console.log(result.root_seal);
@@ -144,7 +151,7 @@ const estimate = await crawler.estimate({
 
 ---
 
-## 📊 Dashboard
+## 🖥️ Dashboard
 
 The real-time dashboard provides live monitoring of pipeline execution:
 
@@ -152,31 +159,21 @@ The real-time dashboard provides live monitoring of pipeline execution:
 - **Event Stream** — Live WebSocket-fed event log
 - **Stats Cards** — Files crystallized, root seal, agents complete, duration
 - **Artifact Browser** — Browse crystallized artifacts as they're produced
+- **Run History** — Click any previous run to re-run with same URL
+- **Incremental Mode** — Checkbox to skip unchanged files
+- **Diff Panel** — Shows added/modified/removed files between runs
 - **Run Panel** — Configure and launch new ingestion runs
+- **Submit to AGNT** — Appears after completion, opens AGNT analysis thread
+- **Open AGNT Chat** — Direct link to AGNT web UI
+
+### Dashboard Files
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ ❄️ ICE Crawler                    ● Connected  Idle │
-├─────────────────────────────────────────────────────┤
-│                                                      │
-│    ❄ ─── 🧊 ─── 💎 ─── 🔒                          │
-│  Frost  Glacier Crystal Residue                     │
-│                                                      │
-│  ████████████████░░░░░░░░░░  60%                    │
-│  Crystal sealing...                                  │
-│                                                      │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ │
-│  │    42    │ │  a3f7... │ │   3/4    │ │  12s   │ │
-│  │  Files   │ │   Seal   │ │  Agents  │ │Duration│ │
-│  └──────────┘ └──────────┘ └──────────┘ └────────┘ │
-│                                                      │
-│  ┌─── 📡 Event Stream ──────────┐ ┌── 📦 Artifacts ┐ │
-│  │ 12:01:03 FROST_VERIFIED      │ │ src/main.py    │ │
-│  │ 12:01:05 GLACIER_CLONED      │ │ lib/utils.ts   │ │
-│  │ 12:01:08 GLACIER_VERIFIED    │ │ README.md      │ │
-│  │ 12:01:10 CRYSTAL_COPIED      │ │ ...            │ │
-│  └──────────────────────────────┘ └────────────────┘ │
-└─────────────────────────────────────────────────────┘
+ui/
+├── dashboard.html   ← Main HTML structure
+├── dashboard.css    ← AGNT design system styles
+├── dashboard.js     ← WebSocket client + UI logic
+└── server.cjs       ← Express + WebSocket server (also at root for AGNT)
 ```
 
 ---
@@ -189,8 +186,8 @@ The real-time dashboard provides live monitoring of pipeline execution:
 | `max_files` | `60` | Maximum files to crystallize |
 | `max_kb` | `256` | Maximum individual file size in KB |
 | `output_dir` | `state/runs/<id>` | Custom output directory |
+| `incremental` | `false` | Skip unchanged files from previous run |
 | `enable_agentics` | `false` | Enable φ-extremal multi-agent partitioning |
-| `dashboard` | `false` | Launch dashboard after ingestion |
 
 ---
 
@@ -206,7 +203,6 @@ state/runs/<run-id>/
 ├── artifact_hashes.json             ← Hash manifest
 ├── crystal_index.json               ← Crystal metadata
 ├── crystal_copy_report.json         ← Picked vs skipped audit
-├── ui_contract.json                 ← UI reads-only contract
 ├── residue_truth.json               ← ρ = ∅ proof
 ├── artifact/
 │   └── crystal/
@@ -230,30 +226,33 @@ state/runs/<run-id>/
 # Install dependencies
 npm install
 
-# Run tests (when added)
-npm test
-
 # Build .agnt package
 npm run build
 
+# Run tests
+node ice-crawler.js estimate https://github.com/agnt-gg/agnt
+node ice-crawler.js ingest https://github.com/agnt-gg/agnt --max-files 30
+
 # Start dashboard for development
-npm run dashboard
+node ice-crawler.js dashboard 8765
 ```
 
 ### Project Structure
 
 ```
 Ice-Crawler-AGNT-Plugin/
-├── manifest.json              ← AGNT plugin manifest + tool schemas
+├── manifest.json              ← AGNT plugin manifest (3 tool schemas)
 ├── package.json               ← ES module, dependencies
-├── ice-crawler.js             ← Main entry point (CLI + AGNT interface)
+├── ice-crawler.js             ← Main entry point (CLI + AGNT class)
+├── server.cjs                 ← Dashboard server (also at root for AGNT)
+├── open-url.js                ← Browser opening utility
 ├── engine/
 │   ├── repo-url.js            ← URL normalizer
-│   ├── frost.js               ← Telemetry scout
-│   ├── glacier.js             ← Ephemeral materialization
-│   ├── crystal.js             ← Deterministic crystallization
+│   ├── frost.js               ← ❄ Telemetry scout
+│   ├── glacier.js             ← 🧊 Shallow clone + triadic selection
+│   ├── crystal.js             ← 💎 Bounded copy + SHA-256 seal
 │   ├── orchestrator.js        ← Master pipeline coordinator
-│   ├── phi-partition.js       ← Golden-ratio partitioner
+│   ├── phi-partition.js       ← φ golden-ratio partitioner
 │   └── agents/
 │       ├── agent-base.js      ← Shared agent utilities
 │       ├── filetype-stats.js  ← Language/extension analysis
@@ -261,7 +260,10 @@ Ice-Crawler-AGNT-Plugin/
 │       ├── hotspots.js        ← Largest files
 │       └── readme-synthesis.js ← README extraction
 ├── ui/
-│   └── (dashboard is inlined in ice-crawler.js)
+│   ├── dashboard.html         ← Dashboard HTML structure
+│   ├── dashboard.css          ← AGNT design system styles
+│   ├── dashboard.js           ← WebSocket client + UI logic
+│   └── server.cjs             ← Express + WebSocket server
 ├── scripts/
 │   └── build.js               ← .agnt package builder
 └── README.md                  ← This file
@@ -279,6 +281,19 @@ Ice-Crawler-AGNT-Plugin/
 
 ---
 
+## 🧬 Evolution Roadmap
+
+| Version | Features |
+|---------|----------|
+| **v1.0.0** | Core triadic pipeline, basic dashboard, AGNT plugin manifest |
+| **v1.1.0** | Submit to AGNT button, persistent dashboard server |
+| **v1.2.0** | open-url.js tool, enhanced AGNT integration |
+| **v1.3.0** | ice-crawler-submit tool, AGNT thread submission |
+| **v1.4.0** | Fixed AGNT install, proper ESM/CJS separation |
+| **v1.5.0** | Extracted UI files, incremental mode, run history, diff panel |
+
+---
+
 ## 📄 License
 
 MIT License — See [LICENSE](LICENSE) for details.
@@ -293,4 +308,4 @@ MIT License — See [LICENSE](LICENSE) for details.
 
 ---
 
-> *"Ingest any repository. Produce deterministic artifacts. Leave zero trace."*
+> *"Ingest any repository. Produce deterministic artifacts. Leave zero trace. Submit to AGNT."*
