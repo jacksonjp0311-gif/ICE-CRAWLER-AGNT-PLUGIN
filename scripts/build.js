@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * scripts/build.js
- * Build .agnt package for ICE Crawler plugin.
- * .agnt files are gzipped tar archives containing source + node_modules.
+ * scripts/build.js — Build .agnt package
+ * .agnt = gzipped tar archive with source + node_modules
  */
 
 import fs from 'fs';
@@ -19,14 +18,11 @@ const PLUGIN_NAME = 'ice-crawler';
 const DIST_DIR = path.join(PLUGIN_DIR, 'dist');
 
 async function build() {
-  console.log(`\n🔧 Building plugin: ${PLUGIN_NAME}\n`);
+  console.log(`\n🔧 Building: ${PLUGIN_NAME}\n`);
 
-  // Validate manifest
+  // Validate
   const manifestPath = path.join(PLUGIN_DIR, 'manifest.json');
-  if (!fs.existsSync(manifestPath)) {
-    console.error('❌ manifest.json not found');
-    process.exit(1);
-  }
+  if (!fs.existsSync(manifestPath)) { console.error('❌ manifest.json not found'); process.exit(1); }
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
   console.log(`📦 ${manifest.name} v${manifest.version}`);
   console.log(`🔧 Tools: ${manifest.tools?.map(t => t.type).join(', ') || 'None'}`);
@@ -39,45 +35,34 @@ async function build() {
   }
   console.log(`✅ node_modules: ${fs.readdirSync(nmPath).length} packages`);
 
-  // Create dist dir
+  // Create dist
   if (!fs.existsSync(DIST_DIR)) fs.mkdirSync(DIST_DIR, { recursive: true });
 
-  // Collect files to include
+  // Collect files (exclude .git, dist, .gitignore, package-lock)
   const exclude = new Set(['.git', 'dist', '.gitignore', 'package-lock.json']);
   const files = fs.readdirSync(PLUGIN_DIR).filter(f => !exclude.has(f));
 
-  console.log(`\n📁 ${files.length} items to package:`);
+  console.log(`\n📁 ${files.length} items:`);
   files.forEach(f => {
     const stat = fs.statSync(path.join(PLUGIN_DIR, f));
-    if (f === 'node_modules') {
-      console.log(`  - ${f}/ (${fs.readdirSync(path.join(PLUGIN_DIR, f)).length} packages)`);
-    } else if (stat.isDirectory()) {
-      console.log(`  - ${f}/`);
-    } else {
-      console.log(`  - ${f} (${stat.size} bytes)`);
-    }
+    if (f === 'node_modules') console.log(`  - ${f}/ (${fs.readdirSync(path.join(PLUGIN_DIR, f)).length} packages)`);
+    else if (stat.isDirectory()) console.log(`  - ${f}/`);
+    else console.log(`  - ${f} (${stat.size} bytes)`);
   });
 
-  // Create .agnt (gzipped tar)
+  // Create .agnt
   const outputFile = path.join(DIST_DIR, `${PLUGIN_NAME}.agnt`);
   console.log(`\n📦 Creating: ${outputFile}`);
 
   await tar.create(
-    {
-      gzip: true,
-      file: outputFile,
-      cwd: PLUGIN_DIR,
-      prefix: PLUGIN_NAME,
-    },
+    { gzip: true, file: outputFile, cwd: PLUGIN_DIR, prefix: PLUGIN_NAME },
     files
   );
 
   const stats = fs.statSync(outputFile);
-  const sizeKB = (stats.size / 1024).toFixed(1);
-  const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
   console.log(`\n✅ Build complete!`);
   console.log(`📦 Output: ${outputFile}`);
-  console.log(`📊 Size: ${stats.size > 1024 * 1024 ? sizeMB + ' MB' : sizeKB + ' KB'}`);
+  console.log(`📊 Size: ${(stats.size / 1024).toFixed(1)} KB`);
 
   // Verify
   const contents = [];
@@ -86,7 +71,4 @@ async function build() {
   console.log(`\n🚀 Ready for marketplace!`);
 }
 
-build().catch(err => {
-  console.error('❌ Build failed:', err.message);
-  process.exit(1);
-});
+build().catch(err => { console.error('❌ Build failed:', err.message); process.exit(1); });

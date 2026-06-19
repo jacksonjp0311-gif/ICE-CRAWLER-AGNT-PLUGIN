@@ -1,3 +1,9 @@
+/**
+ * ice-crawler.js
+ * ❄️ ICE Crawler — AGNT Plugin Entry Point (Pure ESM)
+ * Default export: IceCrawler instance
+ */
+
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -5,7 +11,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// ─── Dynamic imports for engine (ESM-safe) ────────────────────────────
+// ─── Dynamic imports (ESM-safe) ──────────────────────────────────────
 async function runPipelineFn(options) {
   const { runPipeline } = await import('./engine/orchestrator.js');
   return runPipeline(options);
@@ -21,9 +27,9 @@ async function normalizeRepoUrlFn(raw) {
   return normalizeRepositoryUrl(raw);
 }
 
-// ─── Start dashboard server (spawns server.cjs as detached child) ───────
+// ─── Start dashboard server (detached) ───────────────────────────────
 function startDashboardServer(port = 8765) {
-  const serverPath = join(__dirname, 'server.cjs');
+  const serverPath = join(__dirname, 'ui', 'server.cjs');
   const child = spawn(process.execPath, [serverPath, String(port)], {
     detached: true,
     stdio: 'ignore',
@@ -33,7 +39,7 @@ function startDashboardServer(port = 8765) {
   return { pid: child.pid, port, url: `http://localhost:${port}` };
 }
 
-// ─── CLI ───────────────────────────────────────────────────────────────
+// ─── CLI ─────────────────────────────────────────────────────────────
 async function cli() {
   const args = process.argv.slice(2);
   const command = args[0];
@@ -41,7 +47,7 @@ async function cli() {
   if (command === 'ingest') {
     const repoUrl = args[1] || process.env.REPO_URL;
     if (!repoUrl) {
-      console.error('Usage: node ice-crawler.js ingest <repo_url> [--max-files N] [--max-kb N]');
+      console.error('Usage: node ice-crawler.js ingest <repo_url> [--max-files N] [--max-kb N] [--incremental]');
       process.exit(1);
     }
 
@@ -50,9 +56,11 @@ async function cli() {
       if (args[i] === '--max-files' && args[i + 1]) options.max_files = parseInt(args[++i]);
       if (args[i] === '--max-kb' && args[i + 1]) options.max_kb = parseInt(args[++i]);
       if (args[i] === '--agentics') options.enable_agentics = true;
+      if (args[i] === '--incremental') options.incremental = true;
     }
 
     console.log('❄️ ICE Crawler — Starting ingestion...\n');
+    if (options.incremental) console.log('  📦 Incremental mode enabled\n');
 
     const result = await runPipelineFn({
       ...options,
@@ -94,11 +102,10 @@ async function cli() {
     const server = startDashboardServer(port);
     console.log(`  Dashboard: ${server.url}`);
     console.log(`  PID: ${server.pid}`);
-    console.log('\n  Server running in background. Press Ctrl+C to exit (dashboard server stays alive).\n');
+    console.log('\n  Server running in background.');
 
-    // Keep process alive but don't block the server
     process.on('SIGINT', () => {
-      console.log('\n  Exiting CLI (dashboard server stays running)...');
+      console.log('\n  Exiting CLI (dashboard stays running)...');
       process.exit(0);
     });
 
@@ -107,7 +114,7 @@ async function cli() {
 ❄️ ICE Crawler — Triadic Zero-Trace Repository Ingestion
 
 Usage:
-  node ice-crawler.js ingest <url> [--max-files N] [--max-kb N] [--agentics]
+  node ice-crawler.js ingest <url> [--max-files N] [--max-kb N] [--incremental] [--agentics]
   node ice-crawler.js estimate <url>
   node ice-crawler.js dashboard [port]
 
@@ -117,28 +124,30 @@ Commands:
   dashboard  Launch real-time monitoring dashboard (persistent)
 
 Options:
-  --max-files N   Max files to crystallize (default: 60)
-  --max-kb N      Max file size in KB (default: 256)
-  --agentics      Enable φ-extremal agentic partitioning
+  --max-files N    Max files to crystallize (default: 60)
+  --max-kb N       Max file size in KB (default: 256)
+  --incremental    Skip unchanged files from previous run
+  --agentics       Enable φ-extremal agentic partitioning
 
 Examples:
   node ice-crawler.js ingest https://github.com/owner/repo
+  node ice-crawler.js ingest https://github.com/owner/repo --incremental
   node ice-crawler.js estimate https://github.com/owner/repo
   node ice-crawler.js dashboard 8765
 `);
   }
 }
 
-// ─── AGNT Plugin Interface ─────────────────────────────────────────────
+// ─── AGNT Plugin Interface ───────────────────────────────────────────
 class IceCrawler {
   constructor() {
     this.name = 'ice-crawler';
-    this.version = '1.4.0';
+    this.version = '1.5.0';
     this.description = 'Triadic zero-trace repository ingestion engine';
   }
 
   async execute(params) {
-    const { repo_url, max_files, max_kb, output_dir, enable_agentics } = params;
+    const { repo_url, max_files, max_kb, output_dir, enable_agentics, incremental } = params;
     if (!repo_url) return { error: 'repo_url is required' };
 
     try {
@@ -148,6 +157,7 @@ class IceCrawler {
         max_kb: max_kb || 256,
         output_dir,
         enable_agentics: enable_agentics || false,
+        incremental: incremental || false,
       });
 
       if (result.error) return { error: result.error };
@@ -182,96 +192,13 @@ class IceCrawler {
     const server = startDashboardServer(port);
     return { status: 'dashboard_started', ...server };
   }
-
-  async submit(params) {
-    const { run_id } = params;
-    // Find the latest completed run or specific run by ID
-    const runId = run_id || 'latest';
-
-    try {
-      // Get the run result from the server state
-      const response = await fetch('http://localhost:8765/api/status');
-      const status = await response.json();
-
-      const result = status?.latestRun || status?.currentRun;
-
-      if (!result) {
-        return { 
-          status: 'error', 
-          message: 'No completed runs found. Please run an ingestion first.'
-        };
-      }
-
-      // Submit to AGNT API (this will open the thread)
-      const payload = {
-        type: 'submit',
-        payload: {
-          service: 'ice-crawler',
-          operation: 'handoff',
-          data: result,
-          description: 'ICE Crawler ingestion complete — ' + (result.files_crystallized || 0) + ' files crystallized. Submit to open AGNT analysis thread.',
-          metadata: {
-            runId: result.run_id,
-            filesCount: result.files_crystallized,
-            rootSeal: result.root_seal,
-            artifactDir: result.run_state_dir,
-            submitTime: new Date().toISOString(),
-          }
-        }
-      };
-
-      // Call AGNT API
-      const agntResponse = await agntPost('/agents/execute', payload);
-
-      return {
-        status: 'submitted',
-        run_id: result.run_id,
-        message: 'Successfully submitted to AGNT',
-        agntResponse: agntResponse
-      };
-
-    } catch (err) {
-      return { 
-        status: 'error', 
-        message: 'Failed to submit to AGNT: ' + err.message
-      };
-    }
-  }
 }
 
-// AGNT API helper function
-async function agntPost(path, body) {
-  const url = new URL('http://localhost:3333/api' + path);
-  const token = process.env.AGNT_AUTH_TOKEN;
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` })
-  };
-
-  try {
-    const response = await fetch(url.toString(), {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      throw new Error('AGNT API error: ' + response.status);
-    }
-
-    return await response.json();
-  } catch (err) {
-    throw new Error('AGNT API call failed: ' + err.message);
-  }
-}
-
-// ─── Exports ───────────────────────────────────────────────────────────
+// ─── Exports ─────────────────────────────────────────────────────────
 export default new IceCrawler();
 export { IceCrawler };
 
-// ─── CLI Entry Point ───────────────────────────────────────────────────
+// ─── CLI Entry Point ─────────────────────────────────────────────────
 const isDirectRun = process.argv[1] &&
   (process.argv[1].endsWith('ice-crawler.js') || process.argv[1].endsWith('ice-crawler'));
 

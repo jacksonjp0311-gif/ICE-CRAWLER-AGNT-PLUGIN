@@ -1,14 +1,11 @@
 {
   "name": "ice-crawler-agnt-plugin",
-  "version": "2.0.0",
-  "description": "ICE Crawler — Triadic zero-trace repository ingestion for AGNT with real-time dashboard and AGNT thread submission",
+  "version": "1.5.0",
+  "description": "ICE Crawler — Triadic zero-trace repository ingestion for AGNT with dashboard, incremental mode, and AGNT integration",
   "type": "module",
   "main": "ice-crawler.js",
   "engines": { "node": ">=18.0.0" },
-  "dependencies": {
-    "express": "^4.21.0",
-    "ws": "^8.18.0"
-  },
+  "dependencies": { "express": "^4.21.0", "ws": "^8.18.0" },
   "scripts": {
     "start": "node ice-crawler.js",
     "ingest": "node ice-crawler.js ingest",
@@ -16,7 +13,5 @@
     "dashboard": "node ice-crawler.js dashboard",
     "build": "node scripts/build.js"
   },
-  "devDependencies": {
-    "tar": "^7.5.16"
-  }
+  "devDependencies": { "tar": "^7.5.16" }
 }

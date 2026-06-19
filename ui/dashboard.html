@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>❄️ ICE Crawler — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@400;600;700;900&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1><span class="icon">❄️</span> ICE Crawler</h1>
+  <div class="header-right">
+    <span id="connectionStatus" class="conn-status">
+      <span class="conn-dot disconnected"></span> Disconnected
+    </span>
+    <span class="status-badge" id="runStatusBadge">Idle</span>
+  </div>
+</div>
+
+<!-- Phase Ladder -->
+<div class="phase-ladder" id="phaseLadder">
+  <div class="phase"><div class="phase-node"><div class="phase-dot" id="dot-frost">❄</div><div class="phase-label" id="label-frost">Frost</div></div></div>
+  <div class="phase-connector" id="conn-frost"></div>
+  <div class="phase"><div class="phase-node"><div class="phase-dot" id="dot-glacier">🧊</div><div class="phase-label" id="label-glacier">Glacier</div></div></div>
+  <div class="phase-connector" id="conn-glacier"></div>
+  <div class="phase"><div class="phase-node"><div class="phase-dot" id="dot-crystal">💎</div><div class="phase-label" id="label-crystal">Crystal</div></div></div>
+  <div class="phase-connector" id="conn-crystal"></div>
+  <div class="phase"><div class="phase-node"><div class="phase-dot" id="dot-residue">🔒</div><div class="phase-label" id="label-residue">Residue</div></div></div>
+</div>
+
+<!-- Progress -->
+<div class="progress-section">
+  <div class="progress-bar-container"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+  <div class="progress-text">
+    <span id="progressLabel">Ready</span>
+    <span id="progressPercent">0%</span>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card"><div class="stat-value pink" id="statFiles">0</div><div class="stat-label">Files</div></div>
+  <div class="stat-card"><div class="stat-value green" id="statSeal">—</div><div class="stat-label">Root Seal</div></div>
+  <div class="stat-card"><div class="stat-value yellow" id="statAgents">0/4</div><div class="stat-label">Agents</div></div>
+  <div class="stat-card"><div class="stat-value cyan" id="statDuration">0s</div><div class="stat-label">Duration</div></div>
+</div>
+
+<!-- Cache indicator -->
+<div class="cache-bar" id="cacheBar" style="display:none">
+  📦 Cached from previous run — <span id="cacheInfo"></span>
+</div>
+
+<!-- Main Grid -->
+<div class="main-grid">
+  <!-- Event Stream -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">📡 Event Stream</div>
+      <span class="event-count" id="eventCount">0 events</span>
+    </div>
+    <div class="panel-body scrollable" id="eventStream">
+      <div class="event-row placeholder">
+        <span class="event-ts">—</span><span class="event-type">—</span>
+        <span class="event-msg">Waiting for pipeline to start...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Artifacts -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">📦 Artifacts</div>
+      <span class="event-count" id="artifactCount">0</span>
+    </div>
+    <div class="panel-body scrollable" id="artifactList">
+      <div class="artifact-row placeholder">
+        <span class="artifact-name" style="color:var(--duller)">No artifacts yet</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Run History panel -->
+<div class="panel" id="historyPanel" style="margin:0 24px 24px">
+  <div class="panel-header">
+    <div class="panel-title">📜 Run History</div>
+    <button class="btn btn-sm" onclick="clearHistory()" style="padding:4px 12px;font-size:11px">Clear</button>
+  </div>
+  <div class="panel-body scrollable" id="historyList" style="max-height:200px">
+    <div class="artifact-row placeholder">
+      <span class="artifact-name" style="color:var(--duller)">No previous runs</span>
+    </div>
+  </div>
+</div>
+
+<!-- New Run Panel -->
+<div style="padding:0 24px 24px">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">🚀 New Run</div>
+      <label style="font-size:12px;color:var(--medium);display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="incrementalMode" checked> Incremental
+      </label>
+    </div>
+    <div class="panel-body">
+      <div class="form-group">
+        <label class="form-label">Repository URL</label>
+        <input class="form-input" id="repoUrl" type="text" placeholder="https://github.com/owner/repo" list="repoHistory">
+        <datalist id="repoHistory"></datalist>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Max Files</label>
+          <input class="form-input" id="maxFiles" type="number" value="60" min="1" max="500">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max KB</label>
+          <input class="form-input" id="maxKb" type="number" value="256" min="1" max="2048">
+        </div>
+      </div>
+      <button class="btn btn-run" id="runBtn" onclick="startRun()">❄️ Start Ingestion</button>
+
+      <!-- Submit to AGNT Panel (hidden until run completes) -->
+      <div class="submit-panel" id="submitPanel" style="display:none">
+        <h3>✅ Ingestion Complete</h3>
+        <p id="submitSummary">Pipeline complete. Submit to open an AGNT analysis thread.</p>
+        <button class="btn btn-submit" id="submitBtn" onclick="submitToAgnt()">📤 Submit to AGNT</button>
+        <button class="btn btn-open" onclick="openAgntChat()">💬 Open AGNT Chat</button>
+        <div id="submitStatus" class="status-indicator" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Diff panel (shown when incremental detects changes) -->
+<div class="panel" id="diffPanel" style="display:none;margin:0 24px 24px">
+  <div class="panel-header">
+    <div class="panel-title">🔀 Changes Since Last Run</div>
+  </div>
+  <div class="panel-body scrollable" id="diffContent" style="max-height:200px;font-family:var(--font-mono);font-size:13px"></div>
+</div>
+
+<div class="footer">
+  ICE Crawler v1.5.0 — Triadic Zero-Trace Repository Ingestion —
+  <a href="https://github.com/jacksonjp0311-gif/ICE-CRAWLER-AGNT-Plugin">GitHub</a>
+</div>
+
+<script src="dashboard.js"></script>
+</body>
+</html>

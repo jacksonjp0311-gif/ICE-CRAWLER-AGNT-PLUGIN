@@ -2,15 +2,6 @@
  * server.cjs
  * ❄️ ICE Crawler — Dashboard Server (CommonJS)
  * Express + WebSocket + AGNT integration
- * 
- * Serves dashboard from ui/ directory at the same level as this file.
- * When packaged as .agnt, the structure is:
- *   ice-crawler/
- *     server.cjs        ← this file
- *     ui/
- *       dashboard.html
- *       dashboard.css
- *       dashboard.js
  */
 
 const http = require('http');
@@ -20,11 +11,6 @@ const { WebSocketServer } = require('ws');
 
 const PORT = parseInt(process.argv[2]) || parseInt(process.env.PORT) || 8765;
 const AGNT_API = process.env.AGNT_API || 'http://localhost:3333/api';
-
-// ─── Resolve UI directory ──────────────────────────────────────────────
-// server.cjs is at the root of the plugin package
-// ui/ is a sibling directory
-const UI_DIR = path.join(__dirname, 'ui');
 
 // ─── AGNT API helper ──────────────────────────────────────────────────
 function agntFetch(apiPath, options = {}) {
@@ -71,7 +57,7 @@ const state = {
 
 // ─── Serve static files from ui/ ──────────────────────────────────────
 function serveStatic(filePath, contentType) {
-  const fullPath = path.join(UI_DIR, filePath);
+  const fullPath = path.join(__dirname, '..', 'ui', filePath);
   try {
     const data = fs.readFileSync(fullPath);
     return { status: 200, body: data, contentType };
@@ -88,7 +74,7 @@ const server = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
 
-  // Static files from ui/
+  // Static files
   if (req.url === '/dashboard.css') {
     const s = serveStatic('dashboard.css', 'text/css');
     res.writeHead(s.status, { 'Content-Type': s.contentType });
