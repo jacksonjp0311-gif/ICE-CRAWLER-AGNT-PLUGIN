@@ -1,65 +1,30 @@
 {
   "name": "ice-crawler",
   "displayName": "ICE Crawler",
-  "version": "1.4.0",
-  "description": "Triadic zero-trace repository ingestion engine — Frost telemetry, Glacier ephemeral materialization, Crystal deterministic crystallization, and Residue lock. Produces sealed artifacts for AI analysis with real-time dashboard and AGNT thread submission.",
+  "version": "2.0.0",
+  "description": "Triadic zero-trace repository ingestion engine — Frost telemetry, Glacier ephemeral materialization, Crystal deterministic crystallization, Residue lock. Real-time dashboard, AGNT thread submission, incremental mode, run history.",
   "author": "James Paul Jackson",
   "icon": "❄️",
   "homepage": "https://github.com/jacksonjp0311-gif/ICE-CRAWLER-AGNT-Plugin",
   "category": "analysis",
-  "tags": [
-    "repository",
-    "ingestion",
-    "code-analysis",
-    "triadic",
-    "zero-trace",
-    "crystallization",
-    "git",
-    "ai-handoff",
-    "dashboard",
-    "real-time",
-    "agnt"
-  ],
+  "tags": ["repository","ingestion","code-analysis","triadic","zero-trace","crystallization","git","ai-handoff","dashboard","real-time","agnt"],
   "type": "module",
   "main": "./ice-crawler.js",
-  "bin": {
-    "ice-crawler": "./ice-crawler.js"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  },
+  "bin": { "ice-crawler": "./ice-crawler.js" },
+  "engines": { "node": ">=18.0.0" },
   "tools": [
     {
       "type": "ice-crawler-ingest",
       "entryPoint": "./ice-crawler.js",
       "schema": {
         "title": "ICE Crawler Repo Ingestion",
-        "description": "Ingest a Git repository through the triadic Frost→Glacier→Crystal→Residue pipeline. Produces deterministic sealed artifacts for AI analysis with zero residual trace.",
+        "description": "Ingest a Git repository through the triadic Frost→Glacier→Crystal→Residue pipeline.",
         "parameters": {
-          "repo_url": {
-            "type": "string",
-            "required": true,
-            "description": "Git repository URL (GitHub browse URL, .git URL, or local path)"
-          },
-          "max_files": {
-            "type": "number",
-            "default": 60,
-            "description": "Maximum number of files to crystallize"
-          },
-          "max_kb": {
-            "type": "number",
-            "default": 256,
-            "description": "Maximum file size in KB for individual file analysis"
-          },
-          "output_dir": {
-            "type": "string",
-            "description": "Custom output directory (default: state/runs/<run-id>)"
-          },
-          "enable_agentics": {
-            "type": "boolean",
-            "default": false,
-            "description": "Enable φ-extremal agentic partitioning for multi-agent workflows"
-          }
+          "repo_url": { "type": "string", "required": true, "description": "Git repository URL" },
+          "max_files": { "type": "number", "default": 60, "description": "Max files to crystallize" },
+          "max_kb": { "type": "number", "default": 256, "description": "Max file size in KB" },
+          "output_dir": { "type": "string", "description": "Custom output directory" },
+          "enable_agentics": { "type": "boolean", "default": false, "description": "Enable φ-extremal agentics" }
         }
       }
     },
@@ -68,13 +33,9 @@
       "entryPoint": "./ice-crawler.js",
       "schema": {
         "title": "ICE Crawler Telemetry Estimate",
-        "description": "Run Frost-only telemetry to estimate repository head and size without cloning.",
+        "description": "Run Frost-only telemetry to resolve HEAD without cloning.",
         "parameters": {
-          "repo_url": {
-            "type": "string",
-            "required": true,
-            "description": "Git repository URL for telemetry scan"
-          }
+          "repo_url": { "type": "string", "required": true, "description": "Git repository URL" }
         }
       }
     },
@@ -83,28 +44,9 @@
       "entryPoint": "./ice-crawler.js",
       "schema": {
         "title": "ICE Crawler Dashboard",
-        "description": "Launch the real-time ICE Crawler monitoring dashboard UI. Server runs persistently in the background.",
+        "description": "Launch real-time monitoring dashboard with AGNT integration.",
         "parameters": {
-          "port": {
-            "type": "number",
-            "default": 8765,
-            "description": "Port for the dashboard web server"
-          }
-        }
-      }
-    },
-    {
-      "type": "ice-crawler-open-url",
-      "entryPoint": "./open-url.js",
-      "schema": {
-        "title": "ICE Crawler Open Dashboard",
-        "description": "Open the ICE Crawler dashboard in the external system browser.",
-        "parameters": {
-          "url": {
-            "type": "string",
-            "required": true,
-            "description": "Dashboard URL to open (e.g. http://localhost:8765)"
-          }
+          "port": { "type": "number", "default": 8765, "description": "Dashboard port" }
         }
       }
     },
@@ -113,21 +55,25 @@
       "entryPoint": "./ice-crawler.js",
       "schema": {
         "title": "ICE Crawler Submit to AGNT",
-        "description": "Submit the latest ICE Crawler run results to AGNT to open an analysis thread.",
+        "description": "Submit latest run results to AGNT to open an analysis thread.",
         "parameters": {
-          "run_id": {
-            "type": "string",
-            "description": "Specific run ID to submit (default: latest run)"
-          }
+          "run_id": { "type": "string", "description": "Specific run ID (default: latest)" }
+        }
+      }
+    },
+    {
+      "type": "ice-crawler-open-url",
+      "entryPoint": "./open-url.js",
+      "schema": {
+        "title": "ICE Crawler Open Dashboard",
+        "description": "Open the dashboard in external browser.",
+        "parameters": {
+          "url": { "type": "string", "required": true, "description": "Dashboard URL" }
         }
       }
     }
   ],
   "integrations": [
-    {
-      "service": "open-url-toolkit",
-      "capability": "preview",
-      "description": "Open the dashboard in external browser via open-url-native"
-    }
+    { "service": "open-url-toolkit", "capability": "preview", "description": "Open dashboard in external browser" }
   ]
 }
