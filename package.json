@@ -1,0 +1,34 @@
+{
+  "name": "ice-crawler-agnt-plugin",
+  "version": "0.1.0",
+  "description": "AGNT plugin for Ice Crawler — GitHub-connected artifact librarian, repository analyst, and reusable-system builder for the Codex ecosystem.",
+  "type": "module",
+  "main": "engine/index.js",
+  "exports": {
+    ".": "./engine/index.js",
+    "./ui": "./ui/index.js",
+    "./agents": "./agents/index.js"
+  },
+  "scripts": {
+    "start": "node engine/index.js",
+    "test": "node --test engine/**/*.test.js",
+    "lint": "eslint engine/ ui/ agents/"
+  },
+  "keywords": [
+    "agnt",
+    "plugin",
+    "codex",
+    "artifact-librarian",
+    "github",
+    "repository-analysis"
+  ],
+  "author": "Ice Crawler Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "simple-git": "^3.22.0"
+  },
+  "devDependencies": {}
+}

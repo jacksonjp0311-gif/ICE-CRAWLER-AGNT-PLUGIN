@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "ice-crawler",
+  "name": "Ice Crawler",
+  "version": "0.1.0",
+  "description": "GitHub-connected artifact librarian, repository analyst, and reusable-system builder for the Codex ecosystem. Extracts reusable AGNT artifacts from GitHub repositories, gists, and documentation.",
+  "author": "Ice Crawler Team",
+  "license": "MIT",
+  "type": "tool",
+  "category": "repository-analysis",
+  "tags": [
+    "github",
+    "artifact",
+    "librarian",
+    "codex",
+    "repository-analysis"
+  ],
+  "entry": {
+    "engine": "engine/index.js",
+    "ui": "ui/index.js",
+    "agents": "agents/index.js"
+  },
+  "tools": [
+    {
+      "type": "github_repository_reader",
+      "name": "GitHub Repository Reader",
+      "description": "Reads approved repositories, branches, READMEs, source files, docs, releases, issues, pull requests, and commit metadata.",
+      "icon": "fas fa-code-branch"
+    },
+    {
+      "type": "github_gist_harvester",
+      "name": "GitHub Gist Harvester",
+      "description": "Scans public and approved private gists, extracts titles, descriptions, files, versions, tags, and source content.",
+      "icon": "fas fa-file-code"
+    },
+    {
+      "type": "artifact_extractor",
+      "name": "Artifact Extractor",
+      "description": "Identifies reusable concepts, schemas, protocols, scripts, workflows, prompts, diagrams, and architecture modules inside source material.",
+      "icon": "fas fa-gem"
+    },
+    {
+      "type": "artifact_card_builder",
+      "name": "Artifact Card Builder",
+      "description": "Converts extracted material into standard reusable AGNT artifact cards with name, version, role, family, evidence level, dependencies, source links, and next actions.",
+      "icon": "fas fa-id-card"
+    },
+    {
+      "type": "codex_registry_builder",
+      "name": "Codex Registry Builder",
+      "description": "Creates and maintains a master artifact registry organized by family, status, repository, source, version, and maturity.",
+      "icon": "fas fa-database"
+    },
+    {
+      "type": "evidence_linker",
+      "name": "Evidence Linker",
+      "description": "Connects artifacts to proof sources such as test outputs, ledger JSONL, CI reports, benchmark files, and commit SHAs.",
+      "icon": "fas fa-link"
+    },
+    {
+      "type": "claim_boundary_guard",
+      "name": "Claim Boundary Guard",
+      "description": "Detects overclaims and downgrades language to appropriate evidence tiers. Enforces claim ceilings on all artifacts.",
+      "icon": "fas fa-shield-alt"
+    },
+    {
+      "type": "duplicate_drift_detector",
+      "name": "Duplicate and Drift Detector",
+      "description": "Finds duplicate artifacts, stale versions, README drift, naming collisions, and conflicting claims.",
+      "icon": "fas fa-search"
+    }
+  ],
+  "configuration": {
+    "githubToken": {
+      "type": "string",
+      "required": true,
+      "description": "GitHub personal access token for repository and gist access.",
+      "env": "GITHUB_TOKEN"
+    },
+    "artifactLibraryPath": {
+      "type": "string",
+      "required": false,
+      "default": "./artifacts",
+      "description": "Local path to the AGNT artifact library storage."
+    },
+    "searchIndexEnabled": {
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Enable or disable the artifact search index."
+    },
+    "autoPublish": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Automatically publish artifacts to AGNT after extraction (requires approval gate override)."
+    },
+    "evidenceThreshold": {
+      "type": "string",
+      "required": false,
+      "default": "SOURCE_BOUNDED",
+      "enum": [
+        "INTERNAL_NOTE",
+        "SPECIFICATION",
+        "TOY_RUNTIME",
+        "REFERENCE_RUNTIME",
+        "INTERNALLY_TESTED",
+        "SOURCE_BOUNDED",
+        "PUBLIC_READY"
+      ],
+      "description": "Minimum evidence level required for artifact promotion to the library."
+    }
+  },
+  "permissions": [
+    "github:read",
+    "agnt:artifacts:read",
+    "agnt:artifacts:write",
+    "file:read",
+    "file:write"
+  ],
+  "minAgntVersion": "1.0.0"
+}

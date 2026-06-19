@@ -1,0 +1,25 @@
+# ICE Crawler AGNT Plugin
+
+Triadic zero-trace repository ingestion for AGNT.
+
+## Quick Start
+
+```bash
+npm install
+node ice-crawler.js ingest https://github.com/owner/repo
+```
+
+## Dashboard
+
+```bash
+node ice-crawler.js dashboard 8765
+# Open http://localhost:8765
+```
+
+## AGNT Plugin
+
+Install the `.agnt` file into AGNT via the plugin manager.
+
+## License
+
+MIT
